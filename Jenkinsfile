@@ -1,14 +1,16 @@
 /*
  * Jenkins Declarative Pipeline for Continuous Integration and Continuous Delivery (CI/CD)
- * FIX: The Tool ID is changed to 'SonarScannerFinal' to force a clean re-installation 
- * by Jenkins, resolving the "The system cannot find the path specified" error.
+ * This is the corrected version that addresses:
+ * 1. Groovy Syntax Error (def/tool must be inside script {}).
+ * 2. Tool Name Mismatch (reverting to 'SonarScannerCLI' as suggested by Jenkins).
+ * 3. Windows Path Execution Error (using robust triple-double quotes and explicit path).
  */
 pipeline {
     agent any
 
-    // FIX: Changed tool ID to force reinstallation.
+    // 1. Tool name reverted to 'SonarScannerCLI' as suggested by Jenkins.
     tools {
-        'hudson.plugins.sonar.SonarRunnerInstallation' 'SonarScannerFinal' 
+        'hudson.plugins.sonar.SonarRunnerInstallation' 'SonarScannerCLI' 
     }
     
     stages {
@@ -23,21 +25,26 @@ pipeline {
             steps {
                 echo 'Starting Static Analysis with SonarQube...'
                 
-                // 1. Manually resolve the tool path using the new ID.
-                def sonarScannerHome = tool 'SonarScannerFinal'
-                def scannerCommand = "${sonarScannerHome}\\bin\\sonar-scanner.bat"
-                
-                // 2. Use the path inside the withSonarQubeEnv block
-                withSonarQubeEnv('lab12') { 
+                // FIX 1: Variables and the 'tool' step MUST be inside a script block 
+                // when used within the 'steps' section.
+                script {
+                    // 1. Resolve the tool path and store it in a Groovy variable.
+                    def sonarScannerHome = tool 'SonarScannerCLI'
+                    def scannerCommand = "${sonarScannerHome}\\bin\\sonar-scanner.bat"
                     
-                    // The 'bat' command with triple-double quotes for robust execution on Windows.
-                    bat """"${scannerCommand}" -Dsonar.projectKey=my-devsecops-project -Dsonar.sources=.""" 
+                    // 2. Use the path inside the withSonarQubeEnv block
+                    withSonarQubeEnv('lab12') { 
+                        // The 'bat' command uses triple-double quotes ("""...""") for robust 
+                        // execution on Windows, solving the previous path issue.
+                        bat """"${scannerCommand}" -Dsonar.projectKey=my-devsecops-project -Dsonar.sources=.""" 
+                    }
                 }
                 
                 // Quality Gate Check: Pause Pipeline until SonarQube completes analysis
                 script {
                     echo 'Waiting for SonarQube Quality Gate result...'
                     timeout(time: 5, unit: 'MINUTES') { 
+                        // This uses the results submitted in the previous 'withSonarQubeEnv' block.
                         def qg = waitForQualityGate() 
                         
                         if (qg.status != 'OK') {
