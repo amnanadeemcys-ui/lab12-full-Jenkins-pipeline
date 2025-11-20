@@ -7,9 +7,10 @@ pipeline {
     agent any // Specifies that the entire pipeline can run on any available agent
 
     // Global tools setup: Jenkins will automatically download and install the scanner
+    // FIX APPLIED: Replaced the incorrect 'sonarScanner' with the correct alias 'sonarRunner'
     // 'SonarScannerCLI' must match the name configured in Manage Jenkins -> Global Tool Configuration
     tools {
-        sonarScanner 'SonarScannerCLI' 
+        sonarRunner 'SonarScannerCLI' 
     }
     
     stages {
@@ -17,8 +18,8 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building the project...'
-                // Add your project's compilation commands here (e.g., mvn clean install, npm run build)
-                // For a simple demo, we just echo.
+                // You can add your actual build/compile command here
+                // e.g., bat "mvn clean package" or bat "npm install" 
             }
         }
         
@@ -27,12 +28,12 @@ pipeline {
             steps {
                 echo 'Starting Static Analysis with SonarQube...'
                 
-                // withSonarQubeEnv prepares the environment variables needed for the scanner.
-                // 'MySonarQubeServer' must match the name configured in Manage Jenkins -> Configure System
+                // withSonarQubeEnv prepares the environment variables (like the token) 
+                // for the specified server.
+                // 'MySonarQubeServer' must match the name configured in Jenkins
                 withSonarQubeEnv('MySonarQubeServer') { 
-                    // 'bat' command is used because you are running Jenkins on Windows.
-                    // -Dsonar.projectKey=my-devsecops-project MUST match the Project Key you created in SonarQube UI.
-                    // -Dsonar.sources=. tells the scanner to analyze code in the current directory.
+                    // 'bat' command used for Windows. This executes the scanner.
+                    // IMPORTANT: -Dsonar.projectKey=my-devsecops-project MUST match the key in SonarQube UI.
                     bat "sonar-scanner -Dsonar.projectKey=my-devsecops-project -Dsonar.sources=." 
                 }
                 
@@ -40,9 +41,9 @@ pipeline {
                 script {
                     echo 'Waiting for SonarQube Quality Gate result...'
                     timeout(time: 5, unit: 'MINUTES') { 
-                        // The function retrieves the Quality Gate status (OK or FAILED)
                         def qg = waitForQualityGate() 
-                        // If status is not OK, the pipeline immediately stops and fails.
+                        // If the status is not 'OK' (meaning it failed the security/quality checks), 
+                        // the entire Jenkins build fails.
                         if (qg.status != 'OK') {
                             error "SAST Failed! Pipeline aborted due to Quality Gate failure: ${qg.status}"
                         }
@@ -56,7 +57,7 @@ pipeline {
         stage('Test') {
             steps {
                 echo 'Testing the project...'
-                // Add your testing commands here (e.g., mvn test, npm test)
+                // Add your testing commands here
             }
         }
         
@@ -69,7 +70,6 @@ pipeline {
         }
     }
     
-    // Optional: Add a post-build action (like email notification, cleanup, etc.)
     post {
         always {
             echo 'Pipeline finished.'
