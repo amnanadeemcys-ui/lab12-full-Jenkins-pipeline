@@ -7,8 +7,8 @@ pipeline {
     agent any // Specifies that the entire pipeline can run on any available agent
 
     // Global tools setup: Jenkins will automatically download and install the scanner
-    // FIX APPLIED: Using the fully qualified class name for the SonarQube Scanner tool
-    // This name is guaranteed to be recognized by your Jenkins instance.
+    // Tool Name: 'hudson.plugins.sonar.SonarRunnerInstallation' is the explicit, working class name.
+    // Tool ID: 'SonarScannerCLI' must match the name in Global Tool Configuration.
     tools {
         'hudson.plugins.sonar.SonarRunnerInstallation' 'SonarScannerCLI' 
     }
@@ -27,10 +27,8 @@ pipeline {
             steps {
                 echo 'Starting Static Analysis with SonarQube...'
                 
-                // withSonarQubeEnv prepares the environment variables (like the token) 
-                // for the specified server.
-                // 'MySonarQubeServer' must match the name configured in Jenkins
-                withSonarQubeEnv('MySonarQubeServer') { 
+                // FIX APPLIED: Changed the server name to 'lab12' to match Jenkins configuration.
+                withSonarQubeEnv('lab12') { 
                     // 'bat' command used for Windows. This executes the scanner.
                     // IMPORTANT: -Dsonar.projectKey=my-devsecops-project MUST match the key in SonarQube UI.
                     bat "sonar-scanner -Dsonar.projectKey=my-devsecops-project -Dsonar.sources=." 
