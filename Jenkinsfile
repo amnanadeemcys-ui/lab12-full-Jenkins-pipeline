@@ -1,10 +1,10 @@
 /*
  * Jenkins Declarative Pipeline for Continuous Integration and Continuous Delivery (CI/CD)
- * This pipeline includes a Static Application Security Testing (SAST) stage using SonarQube
- * and enforces a Quality Gate check.
+ * FIX: This version explicitly resolves the installation path for 'sonar-scanner.bat'
+ * to fix the "'sonar-scanner' is not recognized" error.
  */
 pipeline {
-    agent any // Specifies that the entire pipeline can run on any available agent
+    agent any
 
     // Global tools setup: Jenkins will automatically download and install the scanner
     // Tool Name: 'hudson.plugins.sonar.SonarRunnerInstallation' is the explicit, working class name.
@@ -14,24 +14,33 @@ pipeline {
     }
     
     stages {
-        // 1. Build Stage
         stage('Build') {
             steps {
                 echo 'Building the project...'
-                // You can add your actual build/compile command here
             }
         }
         
         // 2. Static Analysis Stage (SAST)
         stage('SonarQube Analysis (SAST)') {
+            // New Groovy script block to resolve the scanner tool path
             steps {
                 echo 'Starting Static Analysis with SonarQube...'
                 
-                // FIX APPLIED: Changed the server name to 'lab12' to match Jenkins configuration.
-                withSonarQubeEnv('lab12') { 
-                    // 'bat' command used for Windows. This executes the scanner.
-                    // IMPORTANT: -Dsonar.projectKey=my-devsecops-project MUST match the key in SonarQube UI.
-                    bat "sonar-scanner -Dsonar.projectKey=my-devsecops-project -Dsonar.sources=." 
+                // --- Groovy Script to get the Tool Path ---
+                script {
+                    // 1. Get the path to the installed tool named 'SonarScannerCLI'
+                    // The tool() function returns the full installation directory path.
+                    def sonarScannerHome = tool 'SonarScannerCLI'
+                    
+                    // 2. Use the path inside the withSonarQubeEnv block
+                    withSonarQubeEnv('lab12') { 
+                        // We construct the full command path: <tool_home>\bin\sonar-scanner.bat
+                        def scannerCommand = "${sonarScannerHome}\\bin\\sonar-scanner.bat"
+                        
+                        // Execute the command using the full path
+                        // IMPORTANT: Project Key must match your SonarQube project
+                        bat "\"${scannerCommand}\" -Dsonar.projectKey=my-devsecops-project -Dsonar.sources=." 
+                    }
                 }
                 
                 // Quality Gate Check: Pause Pipeline until SonarQube completes analysis
@@ -39,8 +48,7 @@ pipeline {
                     echo 'Waiting for SonarQube Quality Gate result...'
                     timeout(time: 5, unit: 'MINUTES') { 
                         def qg = waitForQualityGate() 
-                        // If the status is not 'OK' (meaning it failed the security/quality checks), 
-                        // the entire Jenkins build fails.
+                        
                         if (qg.status != 'OK') {
                             error "SAST Failed! Pipeline aborted due to Quality Gate failure: ${qg.status}"
                         }
@@ -50,19 +58,15 @@ pipeline {
             }
         }
 
-        // 3. Test Stage (Only runs if Quality Gate is OK)
         stage('Test') {
             steps {
                 echo 'Testing the project...'
-                // Add your testing commands here
             }
         }
         
-        // 4. Deploy Stage
         stage('Deploy') {
             steps {
                 echo 'Deploying the application...'
-                // Add your deployment commands here
             }
         }
     }
