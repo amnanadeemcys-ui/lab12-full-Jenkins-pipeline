@@ -7,10 +7,10 @@ pipeline {
     agent any // Specifies that the entire pipeline can run on any available agent
 
     // Global tools setup: Jenkins will automatically download and install the scanner
-    // FIX APPLIED: Replaced the incorrect 'sonarScanner' with the correct alias 'sonarRunner'
-    // 'SonarScannerCLI' must match the name configured in Manage Jenkins -> Global Tool Configuration
+    // FIX APPLIED: Using the fully qualified class name for the SonarQube Scanner tool
+    // This name is guaranteed to be recognized by your Jenkins instance.
     tools {
-        sonarRunner 'SonarScannerCLI' 
+        'hudson.plugins.sonar.SonarRunnerInstallation' 'SonarScannerCLI' 
     }
     
     stages {
@@ -19,7 +19,6 @@ pipeline {
             steps {
                 echo 'Building the project...'
                 // You can add your actual build/compile command here
-                // e.g., bat "mvn clean package" or bat "npm install" 
             }
         }
         
